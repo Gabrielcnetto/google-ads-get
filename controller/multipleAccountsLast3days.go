@@ -22,8 +22,9 @@ import (
 )
 
 func AuthGetAcessTokenMultipleAccountsLast3days(c *gin.Context) {
-	clientID := os.Getenv("CLIENT_ID")
-	clientSecret := os.Getenv("CLIENT_SECRET")
+	clientID := "459162752034-80q8hukn6eu45nt4fi0sic5ac51vc3ks.apps.googleusercontent.com"
+
+	clientSecret := "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"
 	config = &oauth2.Config{
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
