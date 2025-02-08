@@ -34,6 +34,9 @@ func MainRoutes() {
 	r.GET("/Auth/getmodelos", controller.AuthGetAcessTokenMultipleGetModelos)
 	r.GET("/oauth2callbackMultipleGetModelos", controller.OAuth2CallbackMultipleAccountsGetModelos)
 	r.GET("/MultipleAccountsModelos", controller.GetTopAndWorstAdGroupsForModelos)
+
+	//pegar dados da alpes
+	r.GET("/loginAlpes", controller.FetchTokensHandler)
 	r.Run(":7070")
 
 }
