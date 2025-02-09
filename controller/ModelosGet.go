@@ -273,7 +273,7 @@ func GetTopAndWorstAdGroupsForModelos(c *gin.Context) {
 			}
 
 			// Criar o texto a ser enviado
-			accountResult := fmt.Sprintf("No mês %s, os modelos mais buscados foram %s e %s, e os menos buscados %s e %s",
+			accountResult := fmt.Sprintf("No mês %s, Tivemos um total de X leads gerados com um CPA Médio de R$XX.00. A Campanha que mais gerou Leads foi a Campanha X. Na Campanha Modelos, os modelos que mais tiveram buscas foram o %s e %s, e os menos buscados %s e %s. Com isso, é válido estudar ações que maximizem ainda mais o resultados dos modelos mais Buscados, fazendo assim ações que vão de acordo com o interesse do público.",
 				monthName, top2[0].Name, top2[1].Name, worst2[0].Name, worst2[1].Name)
 
 			// Adicionar os resultados ao array
