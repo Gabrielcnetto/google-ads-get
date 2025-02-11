@@ -7,90 +7,89 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
+	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gin-gonic/gin"
 )
 
+// Cliente HTTP com suporte a cookies
+var httpClient *http.Client
+
+func init() {
+	// Inicializa o cliente HTTP com CookieJar
+	jar, _ := cookiejar.New(nil)
+	httpClient = &http.Client{Jar: jar}
+}
+
+// Função para buscar os tokens e fazer o login
 func FetchTokensHandler(c *gin.Context) {
-	// Fazendo a requisição GET para o endpoint
-	resp, err := http.Get("https://hub.alpes.one/admin/backend/auth/signin")
+	resp, err := httpClient.Get("https://hub.alpes.one/admin/backend/auth/signin")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Erro ao fazer requisição GET: %v", err)})
 		return
 	}
 	defer resp.Body.Close()
 
-	// Verifica se a resposta foi bem-sucedida
 	if resp.StatusCode != http.StatusOK {
-		body, _ := ioutil.ReadAll(resp.Body)     // Para fins de depuração
-		log.Printf("Resposta: %s", string(body)) // Loga o HTML retornado
+		body, _ := ioutil.ReadAll(resp.Body)
+		log.Printf("Resposta: %s", string(body))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Status de resposta inválido: %d", resp.StatusCode)})
 		return
 	}
 
-	// Carrega o HTML com goquery
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Erro ao processar HTML: %v", err)})
 		return
 	}
 
-	// Procura o valor de _session_key
 	sessionKey, exists := doc.Find("input[name='_session_key']").Attr("value")
 	if !exists {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "_session_key não encontrado no HTML"})
 		return
 	}
 
-	// Procura o valor de _token
 	token, exists := doc.Find("input[name='_token']").Attr("value")
 	if !exists {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "_token não encontrado no HTML"})
 		return
 	}
 
-	// Chama a função Login passando os tokens encontrados
 	Login(sessionKey, token, c)
 }
 
-// Função para fazer o login usando os tokens (_session_key e _token)
 func Login(sessionKey string, token string, c *gin.Context) {
-	// Definindo os dados do corpo para o POST
 	data := url.Values{}
 	data.Set("_session_key", sessionKey)
 	data.Set("_token", token)
-	data.Set("postback", "1") // Valor fixo
+	data.Set("postback", "1")
 	data.Set("login", "gabriel.netto")
 	data.Set("password", "mudar123")
-	data.Set("useTerms", "1") // Representando true como "1" (float com valor verdadeiro)
+	data.Set("useTerms", "1")
 
-	// Criando a requisição POST para o login
-	resp, err := http.PostForm("https://hub.alpes.one/admin/backend/auth/signin", data)
+	resp, err := httpClient.PostForm("https://hub.alpes.one/admin/backend/auth/signin", data)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Erro ao fazer requisição POST: %v", err)})
 		return
 	}
 	defer resp.Body.Close()
 
-	// Verificando a resposta do login
 	if resp.StatusCode != http.StatusOK {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Status de resposta inválido: %d", resp.StatusCode)})
 		return
 	}
 
-	// Loga a resposta para depuração
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Login bem-sucedido!",
 		"status":  resp.StatusCode,
 	})
 
-	// Após o login bem-sucedido, chamar a função que envia o segundo POST para obter o relatório
 	PostLeadReportHandler(c)
 }
 
-// Estruturas para mapear a resposta JSON
 type GeneralData struct {
 	Conversions int `json:"conversions"`
 }
@@ -103,34 +102,35 @@ type ResponseData struct {
 	AdWordsData []AdWordsData `json:"adwords_data"`
 }
 
-// Função para enviar o POST para o relatório e processar o JSON de resposta
 func PostLeadReportHandler(c *gin.Context) {
-	// Definindo os dados do corpo para o POST
-	data := url.Values{}
-	data.Set("company_id", "3")          // company_id como int 3
-	data.Set("type_report[]", "adwords") // type_report[] como string "adwords"
-	data.Set("month", "01")              // mês como int 01
-	data.Set("year", "2025")             // ano como int 2025
-	data.Set("cache", "01")              // cache como int 01
+	// Dados no formato codificado
+	encodedData := "company_id=3&type_report%5B%5D=Adwords&month=01&year=2025&cache=1"
 
-	// Criando a requisição POST com headers customizados
-	req, err := http.NewRequest("POST", "https://hub.alpes.one/admin/alpesone/leads/reports", nil)
+	// Criando a requisição POST
+	req, err := http.NewRequest("POST", "https://hub.alpes.one/admin/alpesone/leads/reports", bytes.NewBufferString(encodedData))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Erro ao criar requisição POST: %v", err)})
 		return
 	}
 
-	// Adicionando o cabeçalho Content-Type
+	// Cabeçalhos necessários para a requisição
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
-	req.Header.Set("cookie", "_hjSession_648805=eyJpZCI6IjgwNWViMzY2LThjMGEtNGUyYi04OWY0LWMzOWIzMWU0OWU3NCIsImMiOjE3MzkwMzkzNjgzMjQsInMiOjAsInIiOjAsInNiIjowLCJzciI6MCwic2UiOjAsImZzIjoxLCJzcCI6MH0=")                                                                                                                                                                                                             // Exemplo de cookie
-	req.Header.Set("admin_auth", "eyJpdiI6InFzTGVEdnBWM0MrekFuSXNqZkhmY2c9PSIsInZhbHVlIjoiYUVBWjI4UWdpVFVTbWNpemdSQ1JzT1Jhdm56cDU0UGZxOCtmUmlXNENDT3ZqSkVFWnVvb1wvQVpNdExPeHFBV2dQbDRwM3lOdmRBa09hOTQzSUhqWkZ2OUNIWDRMU25XakVlZWgzXC9jdUI2M3E0SUZ2MjNTXC8xcjk4QkF5djZzRDd3TmZkWHl4TmVFdHY5U1BrSCs2OUR3PT0iLCJtYWMiOiJiNDBiNDIyODFjNDY5ZjU5ZmVmM2ZlYzhkZmM0NzZlNmM0YzA5ZmM2MjAyMTMyM2IwZmE5N2ViNTJmMGE4MWI5In0%3D") // Exemplo de chave admin_auth
-
-	// Definindo o corpo da requisição
-	req.Body = ioutil.NopCloser(bytes.NewBufferString(data.Encode()))
+	req.Header.Set("Accept", "*/*")
+	req.Header.Set("Accept-Encoding", "gzip, deflate, br, zstd")
+	req.Header.Set("Accept-Language", "en-GB,en;q=0.8")
+	req.Header.Set("Connection", "keep-alive")
+	req.Header.Set("Referer", "https://hub.alpes.one/admin/alpesone/leads/reports")
+	req.Header.Set("Origin", "https://hub.alpes.one")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36")
+	req.Header.Set("X-CSRF-TOKEN", "<CSRF-TOKEN-AQUI>") // Coloque o valor real do CSRF token
+	req.Header.Set("X-OCTOBER-REQUEST-HANDLER", "onLoadReports")
+	req.Header.Set("X-OCTOBER-REQUEST-PARTIALS", "reports")
+	req.Header.Set("X-Requested-With", "XMLHttpRequest")
+	// Cookies para manter a sessão
+	req.Header.Set("Cookie", "_hjSessionUser_648805=eyJpZCI6ImU0YjE3MDk0LWZmNGEtNTdmNS04OTIyLTgyY2JlOWIyOTlkMyIsImNyZWF0ZWQiOjE3MzkwMzkzNjgzMTYsImV4aXN0aW5nIjp0cnVlfQ==; _hjSession_648805=eyJpZCI6ImUyZTI3YWRkLTJjN2YtNGNmOS1iOGIxLTE2MmRhMTBhZjJiYSIsImMiOjE3MzkyOTk1MDMyMTUsInMiOjAsInIiOjAsInNiIjowLCJzciI6MCwic2UiOjAsImZzIjowLCJzcCI6MH0=; admin_auth=eyJpdiI6IkZNTm42blpPb0tOTEU3TEttTndiTmc9PSIsInZhbHVlIjoiTDduOXptdUV2Z09idFBHVWhBNlRnZlpBd3VaXC9rMlg4dzZ0bzZqYk9kYjVRRzdaeWZcL01vbDc1aUtOSmRzcnlidUJaWlpORVhcL1VkcXRoVWNRd1o...")
 
 	// Enviar a requisição
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Erro ao enviar requisição POST: %v", err)})
 		return
@@ -144,27 +144,62 @@ func PostLeadReportHandler(c *gin.Context) {
 		return
 	}
 
-	// Logando o corpo da resposta para depuração
-	log.Printf("Corpo da resposta: %s", string(body))
-
-	// Variável para mapear o JSON
-	var response ResponseData
-
-	// Decodificando o JSON da resposta
-	err = json.Unmarshal(body, &response)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Erro ao processar o JSON: %v", err)})
+	// Verifica se a resposta contém HTML
+	if strings.HasPrefix(string(body), "<html>") {
+		log.Printf("Resposta HTML detectada: %s", string(body))
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "A resposta do servidor contém HTML, não JSON. Pode ser uma página de erro ou login.",
+			"body":  string(body),
+		})
 		return
 	}
 
-	// Extraindo o valor de 'conversions' de 'adwords_data'
-	if len(response.AdWordsData) > 0 {
-		conversions := response.AdWordsData[0].GeneralData.Conversions
-		// Retornando o valor de 'conversions'
-		c.JSON(http.StatusOK, gin.H{
-			"conversions": conversions,
-		})
-	} else {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "adwords_data não encontrado"})
+	// Logando o corpo da resposta para depuração
+	log.Printf("Corpo da resposta (antes de filtrar): %s", string(body))
+
+	// Remover o campo "reports" do JSON, se necessário
+	bodyStr := string(body)
+	if strings.HasPrefix(bodyStr, "{\"reports\":") {
+		index := strings.Index(bodyStr, "{")
+		if index != -1 {
+			bodyStr = bodyStr[index+1:] // Remove o prefixo até o próximo '{'
+		}
 	}
+
+	// Reconstruindo o JSON válido
+	cleanedBody := "{" + bodyStr
+	log.Printf("Corpo da resposta (depois de filtrar): %s", cleanedBody)
+
+	// Decodificando o JSON processado
+	var filteredJSON map[string]interface{}
+	err = json.Unmarshal([]byte(cleanedBody), &filteredJSON)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Erro ao processar o JSON limpo: %v", err)})
+		return
+	}
+
+	// Acessando o valor de "conversions" dentro de "adwords_data"
+	adwordsData, ok := filteredJSON["adwords_data"].([]interface{})
+	if !ok || len(adwordsData) == 0 {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Dados do adwords_data não encontrados"})
+		return
+	}
+
+	// Acessando o "general_data" e "conversions"
+	generalData, ok := adwordsData[0].(map[string]interface{})["general_data"].(map[string]interface{})
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Dados de 'general_data' não encontrados"})
+		return
+	}
+
+	conversions, ok := generalData["conversions"].(float64)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Valor de 'conversions' não encontrado"})
+		return
+	}
+
+	// Retorna o valor de "conversions" como parte do JSON
+	c.JSON(http.StatusOK, gin.H{
+		"conversions": conversions,
+	})
 }
