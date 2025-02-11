@@ -122,7 +122,7 @@ func PostLeadReportHandler(c *gin.Context) {
 	req.Header.Set("Referer", "https://hub.alpes.one/admin/alpesone/leads/reports")
 	req.Header.Set("Origin", "https://hub.alpes.one")
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36")
-	req.Header.Set("X-CSRF-TOKEN", "<CSRF-TOKEN-AQUI>") // Coloque o valor real do CSRF token
+	//req.Header.Set("X-CSRF-TOKEN", "<CSRF-TOKEN-AQUI>") // Coloque o valor real do CSRF token
 	req.Header.Set("X-OCTOBER-REQUEST-HANDLER", "onLoadReports")
 	req.Header.Set("X-OCTOBER-REQUEST-PARTIALS", "reports")
 	req.Header.Set("X-Requested-With", "XMLHttpRequest")
