@@ -33,7 +33,13 @@ func MainRoutes() {
 	//pegar dados de modelos
 	r.GET("/Auth/getmodelos", controller.AuthGetAcessTokenMultipleGetModelos)
 	r.GET("/oauth2callbackMultipleGetModelos", controller.OAuth2CallbackMultipleAccountsGetModelos)
-	r.GET("/MultipleAccountsModelos", controller.GetTopAndWorstAdGroupsForModelos)
+	r.GET("/MultipleAccountsModelos/:accountID", func(c *gin.Context) {
+		accountID := c.Param("accountID")                                   // Extrai o accountID da URL
+		result := controller.GetTopAndWorstAdGroupsForModelos(c, accountID) // Passa para a função
+		if result == "error" {
+			return // Erro já tratado dentro da função
+		}
+	})
 
 	//pegar dados da alpes
 	r.GET("/loginAlpes", controller.FetchTokensHandler)

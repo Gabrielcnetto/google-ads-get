@@ -87,7 +87,8 @@ func Login(sessionKey string, token string, c *gin.Context) {
 		"status":  resp.StatusCode,
 	})
 
-	PostLeadReportHandler(c)
+	//PostLeadReportHandler(c)
+	ProcessAccounts(c)
 }
 
 type GeneralData struct {
@@ -102,15 +103,15 @@ type ResponseData struct {
 	AdWordsData []AdWordsData `json:"adwords_data"`
 }
 
-func PostLeadReportHandler(c *gin.Context) {
+func PostLeadReportHandler(c *gin.Context, AlpesHubId string) float64 {
 	// Dados no formato codificado
-	encodedData := "company_id=301&type_report%5B%5D=Adwords&month=01&year=2025&cache=1"
+	encodedData := "company_id=" + AlpesHubId + "&type_report%5B%5D=Adwords&month=01&year=2025&cache=1"
 
 	// Criando a requisição POST
 	req, err := http.NewRequest("POST", "https://hub.alpes.one/admin/alpesone/leads/reports", bytes.NewBufferString(encodedData))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Erro ao criar requisição POST: %v", err)})
-		return
+		return 0
 	}
 
 	// Cabeçalhos necessários para a requisição
@@ -133,7 +134,7 @@ func PostLeadReportHandler(c *gin.Context) {
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Erro ao enviar requisição POST: %v", err)})
-		return
+		return 0
 	}
 	defer resp.Body.Close()
 
@@ -141,7 +142,7 @@ func PostLeadReportHandler(c *gin.Context) {
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Erro ao ler o corpo da resposta: %v", err)})
-		return
+		return 0
 	}
 
 	// Verifica se a resposta contém HTML
@@ -151,7 +152,7 @@ func PostLeadReportHandler(c *gin.Context) {
 			"error": "A resposta do servidor contém HTML, não JSON. Pode ser uma página de erro ou login.",
 			"body":  string(body),
 		})
-		return
+		return 0
 	}
 
 	// Logando o corpo da resposta para depuração
@@ -175,31 +176,31 @@ func PostLeadReportHandler(c *gin.Context) {
 	err = json.Unmarshal([]byte(cleanedBody), &filteredJSON)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Erro ao processar o JSON limpo: %v", err)})
-		return
+		return 0
 	}
 
 	// Acessando o valor de "conversions" dentro de "adwords_data"
 	adwordsData, ok := filteredJSON["adwords_data"].([]interface{})
 	if !ok || len(adwordsData) == 0 {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Dados do adwords_data não encontrados"})
-		return
+		return 0
 	}
 
 	// Acessando o "general_data" e "conversions"
 	generalData, ok := adwordsData[0].(map[string]interface{})["general_data"].(map[string]interface{})
 	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Dados de 'general_data' não encontrados"})
-		return
+		return 0
 	}
 
 	conversions, ok := generalData["conversions"].(float64)
 	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Valor de 'conversions' não encontrado"})
-		return
+		return 0
 	}
 
 	// Retorna o valor de "conversions" como parte do JSON
-	c.JSON(http.StatusOK, gin.H{
-		"conversions": conversions,
-	})
+
+	return conversions
+
 }

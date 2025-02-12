@@ -1,13 +1,11 @@
 package controller
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"google-ads-get/models"
 	"log"
 	"net/http"
-	"os"
 	"sort"
 	"time"
 
@@ -62,7 +60,9 @@ func OAuth2CallbackMultipleAccountsGetModelos(c *gin.Context) {
 	}
 
 	// Redirecionar para a rota que faz a requisição à API do Google Ads
-	c.Redirect(http.StatusFound, "/MultipleAccountsModelos?access_token="+token.AccessToken)
+	urlToGet := "/MultipleAccountsModelos/" + "2174930101/" + "?access_token=" + token.AccessToken
+	c.Redirect(http.StatusFound, urlToGet)
+
 }
 
 func getPreviousMonthRange() (string, string, string) {
@@ -98,36 +98,11 @@ func getPreviousMonthRange() (string, string, string) {
 }
 
 // Função para buscar os dados do Google Ads com base no mês anterior
-func GetTopAndWorstAdGroupsForModelos(c *gin.Context) {
+func GetTopAndWorstAdGroupsForModelos(c *gin.Context, accountID string) string {
 	accessToken := c.Query("access_token")
 	if accessToken == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Faltando o access_token"})
-		return
-	}
-
-	fileName := "accountIds.txt"
-	accountIDs := []string{}
-
-	// Abrir o arquivo e ler os IDs de contas
-	file, err := os.Open(fileName)
-	if err != nil {
-		fmt.Println("Erro ao abrir o arquivo:", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read account IDs file"})
-		return
-	}
-	defer file.Close()
-
-	// Ler o arquivo linha por linha
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		accountID := scanner.Text()
-		accountIDs = append(accountIDs, accountID)
-	}
-
-	if err := scanner.Err(); err != nil {
-		fmt.Println("Erro ao ler o arquivo:", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read from file"})
-		return
+		return "error"
 	}
 
 	// Definir as credenciais do Google Ads API
@@ -159,140 +134,146 @@ func GetTopAndWorstAdGroupsForModelos(c *gin.Context) {
 	// Calcular o primeiro e o último dia do mês anterior
 	startDate, endDate, monthName := getPreviousMonthRange()
 
-	// Criar um slice para armazenar os resultados de todos os IDs
-	var accountResults []string
-	var accountNames []string
-
-	// Iterar sobre a lista de IDs de contas
-	for _, customerID := range accountIDs {
-		// Consulta para buscar o nome da conta
-		queryAccountName := "SELECT customer.descriptive_name FROM customer"
-		reqName := &services.SearchGoogleAdsRequest{
-			CustomerId: customerID,
-			Query:      queryAccountName,
-		}
-		resName, err := client.Search(ctx, reqName)
-		if err != nil {
-			st, ok := status.FromError(err)
-			if ok {
-				// Retornar informações detalhadas do erro gRPC
-				c.JSON(http.StatusInternalServerError, gin.H{
-					"error_code":    st.Code(),
-					"error_message": st.Message(),
-					"details":       st.Details(),
-				})
-			} else {
-				// Retornar erro genérico se não for um erro gRPC
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			}
-			return
-		}
-
-		var accountName string
-		if len(resName.Results) > 0 {
-			accountName = *resName.Results[0].Customer.DescriptiveName
-		} else {
-			accountName = "Nome não encontrado"
-		}
-
-		// Organizar os resultados
-		querySearch := fmt.Sprintf(
-			"SELECT campaign.id, campaign.name, ad_group.id, ad_group.name, metrics.impressions "+
-				"FROM ad_group WHERE campaign.name LIKE '%%modelos%%' "+
-				"AND segments.date BETWEEN '%s' AND '%s'",
-			startDate, endDate)
-
-		// Criar a requisição para a API do Google Ads
-		req := &services.SearchGoogleAdsRequest{
-			CustomerId: customerID, // ID da conta individual
-			Query:      querySearch,
-		}
-
-		// Enviar a requisição
-		res, err := client.Search(ctx, req)
-		if err != nil {
-			st, ok := status.FromError(err)
-			if ok {
-				// Retornar informações detalhadas do erro gRPC
-				c.JSON(http.StatusInternalServerError, gin.H{
-					"error_code":    st.Code(),
-					"error_message": st.Message(),
-					"details":       st.Details(),
-				})
-			} else {
-				// Retornar erro genérico se não for um erro gRPC
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			}
-			return
-		}
-
-		// Verificar se a conta tem campanhas "modelos"
-		if len(res.Results) == 0 {
-			// Se não houver resultados, informar que a conta não tem campanha "modelos"
-			accountResult := fmt.Sprintf("Na conta %s, não foi encontrada a campanha 'modelos'.", accountName)
-			accountResults = append(accountResults, accountResult)
-			accountNames = append(accountNames, accountName)
-		} else {
-			// Organizar os resultados por impressões
-			var adGroups []models.AdGroup
-			for _, row := range res.Results {
-				adGroupName := *row.AdGroup.Name
-				impressions := int(*row.Metrics.Impressions)
-				adGroups = append(adGroups, models.AdGroup{
-					Name:        adGroupName,
-					Impressions: impressions,
-				})
-			}
-
-			// Ordenar os grupos de anúncios por impressões (do maior para o menor)
-			sort.Slice(adGroups, func(i, j int) bool {
-				return adGroups[i].Impressions > adGroups[j].Impressions
+	// Consulta para buscar o nome da conta
+	queryAccountName := "SELECT customer.descriptive_name FROM customer"
+	reqName := &services.SearchGoogleAdsRequest{
+		CustomerId: accountID,
+		Query:      queryAccountName,
+	}
+	resName, err := client.Search(ctx, reqName)
+	if err != nil {
+		st, ok := status.FromError(err)
+		if ok {
+			// Retornar informações detalhadas do erro gRPC
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error_code":    st.Code(),
+				"error_message": st.Message(),
+				"details":       st.Details(),
 			})
-
-			// Se houver mais de 3 grupos de anúncios, selecionar os 2 melhores e 2 piores
-			var top2 []models.AdGroup
-			var worst2 []models.AdGroup
-
-			if len(adGroups) > 3 {
-				top2 = adGroups[:2]                 // Os 2 melhores
-				worst2 = adGroups[len(adGroups)-2:] // Os 2 piores
-			} else {
-				// Se houver menos de 3 grupos de anúncios
-				accountResult := fmt.Sprintf("Na conta %s, a campanha 'modelos' tem poucos grupos de anúncios.", accountName)
-				accountResults = append(accountResults, accountResult)
-				accountNames = append(accountNames, accountName)
-				continue
-			}
-
-			// Caso não haja 2 elementos, preenchemos com "Grupo insuficiente"
-			if len(top2) < 2 {
-				top2 = append(top2, models.AdGroup{Name: "Grupo insuficiente"})
-			}
-			if len(worst2) < 2 {
-				worst2 = append(worst2, models.AdGroup{Name: "Grupo insuficiente"})
-			}
-
-			// Criar o texto a ser enviado
-			accountResult := fmt.Sprintf("No mês %s, Tivemos um total de X leads gerados com um CPA Médio de R$XX.00. A Campanha que mais gerou Leads foi a Campanha X. Na Campanha Modelos, os modelos que mais tiveram buscas foram o %s e %s, e os menos buscados %s e %s. Com isso, é válido estudar ações que maximizem ainda mais o resultados dos modelos mais Buscados, fazendo assim ações que vão de acordo com o interesse do público.",
-				monthName, top2[0].Name, top2[1].Name, worst2[0].Name, worst2[1].Name)
-
-			// Adicionar os resultados ao array
-			accountResults = append(accountResults, accountResult)
-			accountNames = append(accountNames, accountName)
+		} else {
+			// Retornar erro genérico se não for um erro gRPC
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		}
+		return "error"
 	}
 
-	// Chama a função para salvar os dados na planilha
-	if err := WriteToGoogleSheetsLastModelos(ctx, accessToken, accountNames, accountResults, monthName); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao escrever os dados na planilha"})
-		return
+	var accountName string
+	if len(resName.Results) > 0 {
+		accountName = *resName.Results[0].Customer.DescriptiveName
+	} else {
+		accountName = "Nome não encontrado"
 	}
 
-	// Retornar os resultados
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Dados de grupos de anúncios recuperados com sucesso!",
-		"results": accountResults,
-	})
+	// Organizar os resultados
+	querySearch := fmt.Sprintf(
+		"SELECT campaign.id, campaign.name, ad_group.id, ad_group.name, metrics.impressions "+
+			"FROM ad_group WHERE campaign.name LIKE '%%modelos%%' "+
+			"AND segments.date BETWEEN '%s' AND '%s'",
+		startDate, endDate)
+
+	// Criar a requisição para a API do Google Ads
+	req := &services.SearchGoogleAdsRequest{
+		CustomerId: accountID, // ID da conta individual
+		Query:      querySearch,
+	}
+
+	// Enviar a requisição
+	res, err := client.Search(ctx, req)
+	if err != nil {
+		st, ok := status.FromError(err)
+		if ok {
+			// Retornar informações detalhadas do erro gRPC
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error_code":    st.Code(),
+				"error_message": st.Message(),
+				"details":       st.Details(),
+			})
+		} else {
+			// Retornar erro genérico se não for um erro gRPC
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return "error"
+	}
+
+	// Verificar se a conta tem campanhas "modelos"
+	if len(res.Results) == 0 {
+		// Se não houver resultados, informar que a conta não tem campanha "modelos"
+		accountResult := fmt.Sprintf("Na conta %s, não foi encontrada a campanha 'modelos'.", accountName)
+
+		// Chama a função para salvar os dados na planilha
+		if err := WriteToGoogleSheetsLastModelos(ctx, accessToken, []string{accountName}, []string{accountResult}, monthName); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao escrever os dados na planilha"})
+			return "error"
+		}
+
+		// Retornar o resultado da conta específica
+		c.JSON(http.StatusOK, gin.H{
+			"message": "Dados de grupos de anúncios recuperados com sucesso!",
+			"result":  accountResult,
+		})
+		return accountResult
+	} else {
+		// Organizar os resultados por impressões
+		var adGroups []models.AdGroup
+		for _, row := range res.Results {
+			adGroupName := *row.AdGroup.Name
+			impressions := int(*row.Metrics.Impressions)
+			adGroups = append(adGroups, models.AdGroup{
+				Name:        adGroupName,
+				Impressions: impressions,
+			})
+		}
+
+		// Ordenar os grupos de anúncios por impressões (do maior para o menor)
+		sort.Slice(adGroups, func(i, j int) bool {
+			return adGroups[i].Impressions > adGroups[j].Impressions
+		})
+
+		// Se houver mais de 3 grupos de anúncios, selecionar os 2 melhores e 2 piores
+		var top2 []models.AdGroup
+		var worst2 []models.AdGroup
+
+		if len(adGroups) > 3 {
+			top2 = adGroups[:2]                 // Os 2 melhores
+			worst2 = adGroups[len(adGroups)-2:] // Os 2 piores
+		} else {
+			// Se houver menos de 3 grupos de anúncios
+			accountResult := fmt.Sprintf("Na conta %s, a campanha 'modelos' tem poucos grupos de anúncios.", accountName)
+
+			// Chama a função para salvar os dados na planilha
+			if err := WriteToGoogleSheetsLastModelos(ctx, accessToken, []string{accountName}, []string{accountResult}, monthName); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao escrever os dados na planilha"})
+				return "error"
+			}
+
+			// Retornar o resultado da conta específica
+			c.JSON(http.StatusOK, gin.H{
+				"message": "Dados de grupos de anúncios recuperados com sucesso!",
+				"result":  accountResult,
+			})
+			return accountResult
+		}
+
+		// Caso não haja 2 elementos, preenchemos com "Grupo insuficiente"
+		if len(top2) < 2 {
+			top2 = append(top2, models.AdGroup{Name: "Grupo insuficiente"})
+		}
+		if len(worst2) < 2 {
+			worst2 = append(worst2, models.AdGroup{Name: "Grupo insuficiente"})
+		}
+
+		// Criar o texto a ser enviado
+		accountResult := fmt.Sprintf("No mês %s, Tivemos um total de X leads gerados com um CPA Médio de R$XX.00. A Campanha que mais gerou Leads foi a Campanha X. Na Campanha Modelos, os modelos que mais tiveram buscas foram o %s e %s, e os menos buscados %s e %s. Com isso, é válido estudar ações que maximizem ainda mais o resultados dos modelos mais Buscados, fazendo assim ações que vão de acordo com o interesse do público.",
+			monthName, top2[0].Name, top2[1].Name, worst2[0].Name, worst2[1].Name)
+
+		// Chama a função para salvar os dados na planilha
+		if err := WriteToGoogleSheetsLastModelos(ctx, accessToken, []string{accountName}, []string{accountResult}, monthName); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao escrever os dados na planilha"})
+			return "error"
+		}
+
+		return accountResult
+	}
 }
 
 // Função para escrever os dados na planilha
