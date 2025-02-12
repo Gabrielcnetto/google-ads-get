@@ -31,7 +31,7 @@ func MainRoutes() {
 	r.GET("/MultipleAccountstresdias", controller.GetGoogleAdsDataForMultipleAccountsLast3days)
 
 	//pegar dados de modelos
-	r.GET("/Auth/getmodelos", controller.AuthGetAcessTokenMultipleGetModelos)
+	r.GET("/AuthModelos/:customerID", controller.AuthGetAcessTokenMultipleGetModelos)
 	r.GET("/oauth2callbackMultipleGetModelos", controller.OAuth2CallbackMultipleAccountsGetModelos)
 	r.GET("/MultipleAccountsModelos/:accountID", func(c *gin.Context) {
 		accountID := c.Param("accountID")                                   // Extrai o accountID da URL

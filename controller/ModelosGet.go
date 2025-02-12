@@ -23,7 +23,6 @@ import (
 
 func AuthGetAcessTokenMultipleGetModelos(c *gin.Context) {
 	clientID := "459162752034-80q8hukn6eu45nt4fi0sic5ac51vc3ks.apps.googleusercontent.com"
-
 	clientSecret := "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"
 	config = &oauth2.Config{
 		ClientID:     clientID,
@@ -34,11 +33,12 @@ func AuthGetAcessTokenMultipleGetModelos(c *gin.Context) {
 			"https://www.googleapis.com/auth/adwords",
 			"https://www.googleapis.com/auth/spreadsheets"}, // Escopo para acessar a API do Google Ads
 	}
+
 	// Obter o ID da conta da URL (parâmetro de rota, e não query string)
-	//accountID := c.Param("customerID")
+	customerID := c.Param("customerID")
 
 	// Gerar a URL de login do Google para autorização, incluindo o ID da conta no "state"
-	url := config.AuthCodeURL("", oauth2.AccessTypeOffline)
+	url := config.AuthCodeURL(customerID, oauth2.AccessTypeOffline)
 
 	// Redirecionar o usuário para a URL de login
 	c.Redirect(http.StatusFound, url)
@@ -51,6 +51,13 @@ func OAuth2CallbackMultipleAccountsGetModelos(c *gin.Context) {
 		return
 	}
 
+	// Capturar o customerID do parâmetro "state"
+	customerID := c.Query("state")
+	if customerID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Faltando o ID do cliente (state)"})
+		return
+	}
+
 	// Trocar o código de autorização por um Access Token
 	token, err := config.Exchange(context.Background(), code)
 	if err != nil {
@@ -60,9 +67,8 @@ func OAuth2CallbackMultipleAccountsGetModelos(c *gin.Context) {
 	}
 
 	// Redirecionar para a rota que faz a requisição à API do Google Ads
-	urlToGet := "/MultipleAccountsModelos/" + "2174930101/" + "?access_token=" + token.AccessToken
+	urlToGet := "/MultipleAccountsModelos/" + customerID + "/?access_token=" + token.AccessToken
 	c.Redirect(http.StatusFound, urlToGet)
-
 }
 
 func getPreviousMonthRange() (string, string, string) {
