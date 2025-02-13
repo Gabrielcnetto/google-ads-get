@@ -88,7 +88,7 @@ func Login(sessionKey string, token string, c *gin.Context) {
 	})
 
 	//PostLeadReportHandler(c)
-	ProcessAccounts(c)
+	ProcessAccountsAlpesHub(c)
 }
 
 type GeneralData struct {

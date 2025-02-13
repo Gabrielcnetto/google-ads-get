@@ -42,6 +42,7 @@ func AuthGetAcessTokenMultipleGetModelos(c *gin.Context) {
 
 	// Redirecionar o usuário para a URL de login
 	c.Redirect(http.StatusFound, url)
+
 }
 func OAuth2CallbackMultipleAccountsGetModelos(c *gin.Context) {
 	// Pegar o código de autorização retornado pelo Google
@@ -68,6 +69,7 @@ func OAuth2CallbackMultipleAccountsGetModelos(c *gin.Context) {
 
 	// Redirecionar para a rota que faz a requisição à API do Google Ads
 	urlToGet := "/MultipleAccountsModelos/" + customerID + "/?access_token=" + token.AccessToken
+
 	c.Redirect(http.StatusFound, urlToGet)
 }
 

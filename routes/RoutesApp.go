@@ -43,6 +43,7 @@ func MainRoutes() {
 
 	//pegar dados da alpes
 	r.GET("/loginAlpes", controller.FetchTokensHandler)
+	r.GET("/forGoogleAds", controller.ProcessAccountsFromCSV)
 	r.Run(":7070")
 
 }
