@@ -70,15 +70,30 @@ func OAuth2CallbackMultipleAccountsGetModelosGETFOR(c *gin.Context) {
 	// Agora você pode usar o token conforme necessário
 	log.Printf("Token salvo: %s\n", token.AccessToken)
 	TokenFinal = token.AccessToken
-	c.JSON(http.StatusOK, gin.H{"message": "Token armazenado com sucesso"})
+	Part2ExecGetGoogleads(c)
+
 }
 
 func StartOAuthFlow(c *gin.Context) {
 	// Iniciar o fluxo de autenticação
+
 	InitializeOAuthConfig(c)
 
-	// Aguardar 1 segundo
-	time.Sleep(1 * time.Second)
+}
+func Part2ExecGetGoogleads(c *gin.Context) {
+	var tokenReady bool
+	for i := 0; i < 10; i++ { // Tentativas limitadas para evitar loop infinito
+		if TokenFinal != "" {
+			tokenReady = true
+			break
+		}
+		time.Sleep(500 * time.Millisecond) // Aguarda um curto período
+	}
+
+	if !tokenReady {
+		c.JSON(500, gin.H{"error": "Token não foi inicializado a tempo"})
+		return
+	}
 
 	// Abrir o arquivo CSV
 	file, err := os.Open("dadoscontas.csv")
@@ -100,6 +115,9 @@ func StartOAuthFlow(c *gin.Context) {
 	var wg sync.WaitGroup
 
 	// Percorrer as linhas do CSV
+	print("_____________________________")
+	print("Token está pronto:", tokenReady)
+	print("_____________________________")
 	for _, record := range records {
 		if len(record) > 0 { // Garantir que a linha não está vazia
 			accountId := record[0] // Pegar o primeiro campo da linha
@@ -108,10 +126,13 @@ func StartOAuthFlow(c *gin.Context) {
 			wg.Add(1)
 
 			// Chamar a função assíncrona
-			go func(accountId string) {
-				defer wg.Done()                                               // Reduzir a contagem do WaitGroup quando a goroutine terminar
-				GetTopAndWorstAdGroupsForModelosFOR(c, accountId, TokenFinal) // Passar o token para a próxima função
-			}(accountId)
+			go func(accountId string, token string) {
+				defer wg.Done()
+				GetTopAndWorstAdGroupsForModelosFOR(c, accountId, token)
+			}(accountId, TokenFinal)
+
+			// Aguardar 2 segundos antes de iniciar a próxima goroutine
+			time.Sleep(2 * time.Second)
 		}
 	}
 
