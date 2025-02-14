@@ -2,8 +2,11 @@ package controller
 
 import (
 	"context"
+	"encoding/csv"
 	"log"
 	"net/http"
+	"os"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/oauth2"
@@ -17,6 +20,7 @@ var (
 )
 
 var Config *oauth2.Config
+var TokenFinal string
 
 func InitializeOAuthConfig(c *gin.Context) {
 	clientID := "459162752034-80q8hukn6eu45nt4fi0sic5ac51vc3ks.apps.googleusercontent.com"
@@ -64,46 +68,52 @@ func OAuth2CallbackMultipleAccountsGetModelosGETFOR(c *gin.Context) {
 
 	// Agora você pode usar o token conforme necessário
 	log.Printf("Token salvo: %s\n", token.AccessToken)
+	TokenFinal = token.AccessToken
 	c.JSON(http.StatusOK, gin.H{"message": "Token armazenado com sucesso"})
 }
+
 func StartOAuthFlow(c *gin.Context) {
 	// Iniciar o fluxo de autenticação
 	InitializeOAuthConfig(c)
-}
 
-//func CentralizaGetFuncoesGoogleAds(c *gin.Context) {
-//	// Obter o token antes de prosseguir
-//	//token, err := InitializeOAuthConfig()
-//	//if err != nil {
-//		c.JSON(500, gin.H{"error": "Erro ao obter o token"})
-//		return
-//	}
-//
-//	// Agora que temos o token, podemos continuar com o processamento
-//	file, err := os.Open("dadoscontas.csv")
-//	if err != nil {
-//		c.JSON(500, gin.H{"error": "Erro ao abrir o arquivo CSV"})
-//		return
-//	}
-//	defer file.Close()
-//
-//	// Criar um leitor CSV
-//	reader := csv.NewReader(file)
-//	records, err := reader.ReadAll()
-//	if err != nil {
-//		c.JSON(500, gin.H{"error": "Erro ao ler o arquivo CSV"})
-//		return
-//	}
-//
-//	// Percorrer as linhas do CSV
-//	for _, record := range records {
-//		if len(record) > 0 { // Garantir que a linha não está vazia
-//			accountId := record[0]                                   // Pegar o primeiro campo da linha
-//			GetTopAndWorstAdGroupsForModelosFOR(c, accountId, token) // Passar o token para a próxima função
-//		}
-//	}
-//
-//	// Resposta final após o loop
-//	c.JSON(200, gin.H{"message": "Processamento concluído para todas as contas"})
-//}
-////
+	// Abrir o arquivo CSV
+	file, err := os.Open("dadoscontas.csv")
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Erro ao abrir o arquivo CSV"})
+		return
+	}
+	defer file.Close()
+
+	// Criar um leitor CSV
+	reader := csv.NewReader(file)
+	records, err := reader.ReadAll()
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Erro ao ler o arquivo CSV"})
+		return
+	}
+
+	// Criar um canal para aguardar a conclusão de todas as goroutines
+	var wg sync.WaitGroup
+
+	// Percorrer as linhas do CSV
+	for _, record := range records {
+		if len(record) > 0 { // Garantir que a linha não está vazia
+			accountId := record[0] // Pegar o primeiro campo da linha
+
+			// Adicionar 1 à contagem do WaitGroup para cada goroutine
+			wg.Add(1)
+
+			// Chamar a função assíncrona
+			go func(accountId string) {
+				defer wg.Done()                                               // Reduzir a contagem do WaitGroup quando a goroutine terminar
+				GetTopAndWorstAdGroupsForModelosFOR(c, accountId, TokenFinal) // Passar o token para a próxima função
+			}(accountId)
+		}
+	}
+
+	// Esperar até que todas as goroutines terminem
+	wg.Wait()
+
+	// Resposta final após o loop assíncrono
+	c.JSON(200, gin.H{"message": "Processamento concluído para todas as contas"})
+}

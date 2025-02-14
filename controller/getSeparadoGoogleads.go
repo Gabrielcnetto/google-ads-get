@@ -10,18 +10,18 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/shenzhencenter/google-ads-pb/services"
-	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
 
-func GetTopAndWorstAdGroupsForModelosFOR(c *gin.Context, accountID string, token *oauth2.Token) string {
-	if token == nil {
+func GetTopAndWorstAdGroupsForModelosFOR(c *gin.Context, accountID string, token string) string {
+	if token == "" {
 		log.Println("Token não encontrado!")
 		return ""
 	}
+	print("Entrei nesta funcao")
 
 	// Definir as credenciais do Google Ads API
 	developerToken := "MvSisVf6otSXPLwUvGbUaw" // Coloque seu developer token correto aqui
@@ -30,7 +30,7 @@ func GetTopAndWorstAdGroupsForModelosFOR(c *gin.Context, accountID string, token
 	// Criar um novo contexto e adicionar os headers necessários
 	ctx := context.Background()
 	headers := metadata.Pairs(
-		"authorization", "Bearer "+token.AccessToken, // Usar o token passado como argumento
+		"authorization", "Bearer "+TokenFinal, // Usar o token passado como argumento
 		"developer-token", developerToken,
 		"login-customer-id", loginCustomerID, // ID da MCC
 	)
@@ -119,7 +119,7 @@ func GetTopAndWorstAdGroupsForModelosFOR(c *gin.Context, accountID string, token
 		accountResult := fmt.Sprintf("Na conta %s, não foi encontrada a campanha 'modelos'.", accountName)
 
 		// Chama a função para salvar os dados na planilha
-		if err := WriteToGoogleSheetsLastModelos(ctx, token.AccessToken, []string{accountName}, []string{accountResult}, monthName); err != nil {
+		if err := WriteToGoogleSheetsLastModelos(ctx, token, []string{accountName}, []string{accountResult}, monthName); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao escrever os dados na planilha"})
 			return "error"
 		}
@@ -159,7 +159,7 @@ func GetTopAndWorstAdGroupsForModelosFOR(c *gin.Context, accountID string, token
 			accountResult := fmt.Sprintf("Na conta %s, a campanha 'modelos' tem poucos grupos de anúncios.", accountName)
 
 			// Chama a função para salvar os dados na planilha
-			if err := WriteToGoogleSheetsLastModelos(ctx, token.AccessToken, []string{accountName}, []string{accountResult}, monthName); err != nil {
+			if err := WriteToGoogleSheetsLastModelos(ctx, token, []string{accountName}, []string{accountResult}, monthName); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao escrever os dados na planilha"})
 				return "error"
 			}
@@ -185,7 +185,7 @@ func GetTopAndWorstAdGroupsForModelosFOR(c *gin.Context, accountID string, token
 			monthName, top2[0].Name, top2[1].Name, worst2[0].Name, worst2[1].Name)
 
 		// Chama a função para salvar os dados na planilha
-		if err := WriteToGoogleSheetsLastModelos(ctx, token.AccessToken, []string{accountName}, []string{accountResult}, monthName); err != nil {
+		if err := WriteToGoogleSheetsLastModelos(ctx, token, []string{accountName}, []string{accountResult}, monthName); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao escrever os dados na planilha"})
 			return "error"
 		}
