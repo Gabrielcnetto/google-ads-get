@@ -31,19 +31,20 @@ func MainRoutes() {
 	r.GET("/MultipleAccountstresdias", controller.GetGoogleAdsDataForMultipleAccountsLast3days)
 
 	//pegar dados de modelos
-	r.GET("/AuthModelos/:customerID", controller.AuthGetAcessTokenMultipleGetModelos)
-	r.GET("/oauth2callbackMultipleGetModelos", controller.OAuth2CallbackMultipleAccountsGetModelos)
-	r.GET("/MultipleAccountsModelos/:accountID", func(c *gin.Context) {
-		accountID := c.Param("accountID")                                   // Extrai o accountID da URL
-		result := controller.GetTopAndWorstAdGroupsForModelos(c, accountID) // Passa para a função
-		if result == "error" {
-			return // Erro já tratado dentro da função
-		}
-	})
+	//r.GET("/AuthModelos/:customerID", controller.AuthGetAcessTokenMultipleGetModelos)
+	//	r.GET("/oauth2callbackMultipleGetModelos", controller.OAuth2CallbackMultipleAccountsGetModelos)
+	//r.GET("/MultipleAccountsModelos/:accountID", func(c *gin.Context) {
+	//	accountID := c.Param("accountID")                                   // Extrai o accountID da URL
+	//	result := controller.GetTopAndWorstAdGroupsForModelos(c, accountID) // Passa para a função
+	//	if result == "error" {
+	//		return // Erro já tratado dentro da função
+	//	}
+	//})
 
 	//pegar dados da alpes
 	r.GET("/loginAlpes", controller.FetchTokensHandler)
-	r.GET("/forGoogleAds", controller.ProcessAccountsFromCSV)
+	r.GET("/oauth2callbackMultipleGetModelos", controller.OAuth2CallbackMultipleAccountsGetModelosGETFOR)
+	r.GET("/forGoogleAds", controller.AuthGetAcessTokenMultipleGetModelosGETFOR)
 	r.Run(":7070")
 
 }

@@ -43,30 +43,52 @@ func ProcessAccountsAlpesHub(c *gin.Context) {
 // google ads
 
 func ProcessAccountsAlpesGoogleAds(c *gin.Context, accountId string) {
-	// ID fixo para a conta (exemplo)
 	alpesHubID := accountId
-
-	// URL do endpoint que queremos chamar
 	authURL := "http://localhost:7070/AuthModelos/" + alpesHubID
 
-	// Fazer a requisição GET
-	respAuth, err := http.Get(authURL)
-	if err != nil {
-		// Se ocorrer um erro, retornar erro 500
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao chamar o endpoint de autorização"})
-		return
-	}
-	defer respAuth.Body.Close()
-
-	// Verificar se o status da resposta é OK (200)
-	if respAuth.StatusCode != http.StatusOK {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Erro: status %d", respAuth.StatusCode)})
-		return
+	client := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			// Permitir até 10 redirecionamentos antes de falhar
+			if len(via) > 10 {
+				return fmt.Errorf("muitos redirecionamentos")
+			}
+			return nil
+		},
 	}
 
-	// Se a resposta for bem-sucedida, retornar sucesso
-	c.JSON(http.StatusOK, gin.H{"message": "Fluxo de autorização concluído", "status": respAuth.Status})
+	// Variável para verificar se o fluxo foi finalizado
+	done := false
+
+	// Loop para seguir os redirecionamentos até chegar no status 200
+	for !done {
+		resp, err := client.Get(authURL)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Erro na requisição: %v", err)})
+			return
+		}
+		defer resp.Body.Close()
+
+		// Se já chegou no 200, finalizar
+		if resp.StatusCode == 200 {
+			done = true
+		} else if resp.StatusCode != http.StatusFound {
+			// Se o status não for 302 ou 200, retornar erro
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Erro inesperado: status %d", resp.StatusCode)})
+			return
+		} else {
+			// Se for 302, seguir o redirecionamento
+			authURL = resp.Header.Get("Location")
+			if authURL == "" {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Redirecionamento sem Location"})
+				return
+			}
+		}
+	}
+
+	// Após todos os redirecionamentos, responder sucesso
+	c.JSON(http.StatusOK, gin.H{"message": "Fluxo de autorização concluído", "status": "200 OK"})
 }
+
 func ProcessAccountsFromCSV(c *gin.Context) {
 	// Abrir o arquivo CSV
 	file, err := os.Open("dadoscontas.csv")
