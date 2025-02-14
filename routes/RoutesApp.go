@@ -44,7 +44,7 @@ func MainRoutes() {
 	//pegar dados da alpes
 	r.GET("/loginAlpes", controller.FetchTokensHandler)
 	r.GET("/oauth2callbackMultipleGetModelos", controller.OAuth2CallbackMultipleAccountsGetModelosGETFOR)
-	r.GET("/forGoogleAds", controller.CentralizaGetFuncoesGoogleAds)
+	r.GET("/forGoogleAds", controller.StartOAuthFlow)
 	r.Run(":7070")
 
 }
