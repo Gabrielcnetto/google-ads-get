@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/oauth2"
@@ -75,6 +76,9 @@ func OAuth2CallbackMultipleAccountsGetModelosGETFOR(c *gin.Context) {
 func StartOAuthFlow(c *gin.Context) {
 	// Iniciar o fluxo de autenticação
 	InitializeOAuthConfig(c)
+
+	// Aguardar 1 segundo
+	time.Sleep(1 * time.Second)
 
 	// Abrir o arquivo CSV
 	file, err := os.Open("dadoscontas.csv")

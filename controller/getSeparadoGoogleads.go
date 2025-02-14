@@ -17,6 +17,7 @@ import (
 )
 
 func GetTopAndWorstAdGroupsForModelosFOR(c *gin.Context, accountID string, token string) string {
+	print("Token passado por construtor:", token)
 	if token == "" {
 		log.Println("Token não encontrado!")
 		return ""
