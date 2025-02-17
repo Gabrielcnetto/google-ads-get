@@ -25,7 +25,6 @@ func WriteToGoogleSheets(ctx context.Context, accessToken string, campaigns []mo
 	// Transformar os dados das campanhas em um formato para a planilha
 	var sheetData [][]interface{}
 	// Cabeçalho
-	sheetData = append(sheetData, []interface{}{"Nome da Conta", "Custo", "Impressões", "Cliques", "AccountId"})
 
 	// Adicionar os dados das campanhas
 	for _, campaign := range campaigns {

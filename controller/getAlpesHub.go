@@ -10,6 +10,7 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gin-gonic/gin"
@@ -105,9 +106,25 @@ type ResponseData struct {
 
 var TotalLeadsAlpesHub float64
 
+var (
+	previousMonth string
+	previousYear  string
+)
+
+func setPreviousMonth() {
+	// Obter o mês atual e ano
+	now := time.Now()
+	previousDate := now.AddDate(0, -1, 0)                     // Subtrai 1 mês
+	previousMonth = fmt.Sprintf("%02d", previousDate.Month()) // Formata o mês com 2 dígitos
+	previousYear = fmt.Sprintf("%d", previousDate.Year())     // Pega o ano
+}
+
 func PostLeadReportHandler(c *gin.Context, AlpesHubId string) float64 {
+
+	setPreviousMonth()
 	// Dados no formato codificado
-	encodedData := "company_id=" + AlpesHubId + "&type_report%5B%5D=Adwords&month=01&year=2025&cache=1"
+	//encodedData := "company_id=" + AlpesHubId + "&type_report%5B%5D=Adwords&month=01&year=2025&cache=1"
+	encodedData := "company_id=" + AlpesHubId + "&type_report%5B%5D=Adwords&month=" + previousMonth + "&year=" + previousYear + "&cache=1"
 
 	// Criando a requisição POST
 	req, err := http.NewRequest("POST", "https://hub.alpes.one/admin/alpesone/leads/reports", bytes.NewBufferString(encodedData))
