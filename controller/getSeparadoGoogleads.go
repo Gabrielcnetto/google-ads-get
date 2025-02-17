@@ -71,7 +71,10 @@ func GetTopAndWorstAdGroupsForModelosFOR(c *gin.Context, accountID string, token
 	// Consulta para buscar os grupos de anúncios
 	querySearch := fmt.Sprintf(
 		"SELECT campaign.id, campaign.name, ad_group.id, ad_group.name, ad_group.status, metrics.impressions "+
-			"FROM ad_group WHERE campaign.name LIKE '%%modelos%%' "+
+			"FROM ad_group "+
+			"WHERE campaign.name LIKE '%%modelos%%' "+
+			"AND campaign.name NOT LIKE '%%seminovo%%' "+
+			"AND campaign.name NOT LIKE '%%seminovos%%' "+
 			"AND segments.date BETWEEN '%s' AND '%s'",
 		startDate, endDate)
 
@@ -153,7 +156,12 @@ func GetTopAndWorstAdGroupsForModelosFOR(c *gin.Context, accountID string, token
 		top2 = adGroups[:2]                 // Os 2 melhores
 		worst2 = adGroups[len(adGroups)-2:] // Os 2 piores
 	} else {
-		accountResult := fmt.Sprintf("Na conta %s, a campanha 'modelos' tem poucos grupos de anúncios.", accountName)
+		totalValorCPA := (totalCost / totalLeadsHub)
+		accountResult := fmt.Sprintf(
+			"No mês de %s, Tivemos um total de %.0f leads gerados com um CPA Médio de R$%.2f. "+
+				"A Campanha que mais gerou Leads foi a Campanha X. Nas demais vamos estudar melhorias visando aumentar os leads gerados e uma redução no CPA. ",
+
+			monthName, totalLeadsHub, totalValorCPA)
 		log.Println(accountResult)
 
 		if err := WriteToGoogleSheetsLastModelos(ctx, token, []string{accountName}, []string{accountResult}, monthName); err != nil {
@@ -177,7 +185,7 @@ func GetTopAndWorstAdGroupsForModelosFOR(c *gin.Context, accountID string, token
 	accountResult := fmt.Sprintf(
 		"No mês de %s, Tivemos um total de %.0f leads gerados com um CPA Médio de R$%.2f. "+
 			"A Campanha que mais gerou Leads foi a Campanha X. Na Campanha Modelos, "+
-			"os modelos que mais tiveram buscas foram o %s e %s, e os menos buscados %s e %s. "+
+			"os modelos que mais tiveram buscas foram o %s e %s, e os menos buscados %s e %s. Nas demais vamos estudar melhorias visando aumentar os leads gerados e uma redução no CPA. "+
 			"Com isso, é válido estudar ações que maximizem ainda mais o resultados dos modelos mais Buscados, "+
 			"fazendo assim ações que vão de acordo com o interesse do público. ",
 		monthName, totalLeadsHub, totalValorCPA, top2[0].Name, top2[1].Name, worst2[0].Name, worst2[1].Name)
