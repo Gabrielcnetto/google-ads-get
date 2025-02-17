@@ -121,7 +121,7 @@ func Part2ExecGetGoogleads(c *gin.Context) {
 	for _, record := range records {
 		if len(record) > 0 { // Garantir que a linha não está vazia
 			accountId := record[0] // Pegar o primeiro campo da linha
-
+			alpesHubId := record[1]
 			// Adicionar 1 à contagem do WaitGroup para cada goroutine
 			wg.Add(1)
 
@@ -129,6 +129,8 @@ func Part2ExecGetGoogleads(c *gin.Context) {
 			go func(accountId string, token string) {
 				defer wg.Done()
 				GetTopAndWorstAdGroupsForModelosFOR(c, accountId, token)
+				//funcao abaixo pega o id da alpes para soliciatr login e tudo mais
+				FetchTokensHandler(c, alpesHubId)
 			}(accountId, TokenFinal)
 
 			// Aguardar 2 segundos antes de iniciar a próxima goroutine

@@ -25,7 +25,7 @@ func init() {
 }
 
 // Função para buscar os tokens e fazer o login
-func FetchTokensHandler(c *gin.Context) {
+func FetchTokensHandler(c *gin.Context, alpesId string) {
 	resp, err := httpClient.Get("https://hub.alpes.one/admin/backend/auth/signin")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Erro ao fazer requisição GET: %v", err)})
@@ -58,10 +58,10 @@ func FetchTokensHandler(c *gin.Context) {
 		return
 	}
 
-	Login(sessionKey, token, c)
+	Login(sessionKey, token, c, alpesId)
 }
 
-func Login(sessionKey string, token string, c *gin.Context) {
+func Login(sessionKey string, token string, c *gin.Context, alpesId string) {
 	data := url.Values{}
 	data.Set("_session_key", sessionKey)
 	data.Set("_token", token)
@@ -88,7 +88,7 @@ func Login(sessionKey string, token string, c *gin.Context) {
 	})
 
 	//PostLeadReportHandler(c)
-	ProcessAccountsAlpesHub(c)
+	ProcessAccountsAlpesHub(c, alpesId)
 }
 
 type GeneralData struct {
