@@ -114,9 +114,9 @@ var (
 func setPreviousMonth() {
 	// Obter o mês atual e ano
 	now := time.Now()
-	previousDate := now.AddDate(0, -1, 0)                     // Subtrai 1 mês
-	previousMonth = fmt.Sprintf("%02d", previousDate.Month()) // Formata o mês com 2 dígitos
-	previousYear = fmt.Sprintf("%d", previousDate.Year())     // Pega o ano
+	previousDate := now.AddDate(0, -1, 0)
+	previousMonth = fmt.Sprintf("%02d", previousDate.Month())
+	previousYear = fmt.Sprintf("%d", previousDate.Year())
 }
 
 func PostLeadReportHandler(c *gin.Context, AlpesHubId string) float64 {
@@ -141,8 +141,7 @@ func PostLeadReportHandler(c *gin.Context, AlpesHubId string) float64 {
 	req.Header.Set("Connection", "keep-alive")
 	req.Header.Set("Referer", "https://hub.alpes.one/admin/alpesone/leads/reports")
 	req.Header.Set("Origin", "https://hub.alpes.one")
-	//req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36")
-	//req.Header.Set("X-CSRF-TOKEN", "<CSRF-TOKEN-AQUI>") // Coloque o valor real do CSRF token
+
 	req.Header.Set("X-OCTOBER-REQUEST-HANDLER", "onLoadReports")
 	req.Header.Set("X-OCTOBER-REQUEST-PARTIALS", "reports")
 	req.Header.Set("X-Requested-With", "XMLHttpRequest")
