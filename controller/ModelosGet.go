@@ -299,12 +299,9 @@ func WriteToGoogleSheetsLastModelos(ctx context.Context, accessToken string, acc
 
 	// Transformar os dados das campanhas em um formato para a planilha
 	var sheetData [][]interface{}
-	// Cabeçalho
-	sheetData = append(sheetData, []interface{}{"Nome da Conta", "Texto", "Mês"})
 
 	// Adicionar os dados das campanhas
 	for i, result := range accountResults {
-		// Criar o ID como o índice da conta (por exemplo, 1, 2, 3...)
 		sheetData = append(sheetData, []interface{}{
 			accountNames[i], // Nome da Conta
 			result,          // Texto

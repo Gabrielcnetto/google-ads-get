@@ -103,6 +103,8 @@ type ResponseData struct {
 	AdWordsData []AdWordsData `json:"adwords_data"`
 }
 
+var TotalLeadsAlpesHub float64
+
 func PostLeadReportHandler(c *gin.Context, AlpesHubId string) float64 {
 	// Dados no formato codificado
 	encodedData := "company_id=" + AlpesHubId + "&type_report%5B%5D=Adwords&month=01&year=2025&cache=1"
@@ -156,7 +158,7 @@ func PostLeadReportHandler(c *gin.Context, AlpesHubId string) float64 {
 	}
 
 	// Logando o corpo da resposta para depuração
-	log.Printf("Corpo da resposta (antes de filtrar): %s", string(body))
+	//log.Printf("Corpo da resposta (antes de filtrar): %s", string(body))
 
 	// Remover o campo "reports" do JSON, se necessário
 	bodyStr := string(body)
@@ -169,7 +171,7 @@ func PostLeadReportHandler(c *gin.Context, AlpesHubId string) float64 {
 
 	// Reconstruindo o JSON válido
 	cleanedBody := "{" + bodyStr
-	log.Printf("Corpo da resposta (depois de filtrar): %s", cleanedBody)
+	//log.Printf("Corpo da resposta (depois de filtrar): %s", cleanedBody)
 
 	// Decodificando o JSON processado
 	var filteredJSON map[string]interface{}
@@ -200,7 +202,7 @@ func PostLeadReportHandler(c *gin.Context, AlpesHubId string) float64 {
 	}
 
 	// Retorna o valor de "conversions" como parte do JSON
-
+	TotalLeadsAlpesHub = conversions
 	return conversions
 
 }

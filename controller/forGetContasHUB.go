@@ -1,8 +1,6 @@
 package controller
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
 )
 
@@ -13,5 +11,5 @@ func ProcessAccountsAlpesHub(c *gin.Context, alpesHubID string) {
 		alpesHubID: float64(conversions),
 	}
 
-	c.JSON(http.StatusOK, gin.H{"results": results})
+	print("results", results)
 }

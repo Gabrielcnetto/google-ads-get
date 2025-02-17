@@ -82,12 +82,12 @@ func StartOAuthFlow(c *gin.Context) {
 }
 func Part2ExecGetGoogleads(c *gin.Context) {
 	var tokenReady bool
-	for i := 0; i < 10; i++ { // Tentativas limitadas para evitar loop infinito
+	for i := 0; i < 10; i++ {
 		if TokenFinal != "" {
 			tokenReady = true
 			break
 		}
-		time.Sleep(500 * time.Millisecond) // Aguarda um curto período
+		time.Sleep(500 * time.Millisecond)
 	}
 
 	if !tokenReady {
@@ -95,7 +95,6 @@ func Part2ExecGetGoogleads(c *gin.Context) {
 		return
 	}
 
-	// Abrir o arquivo CSV
 	file, err := os.Open("dadoscontas.csv")
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Erro ao abrir o arquivo CSV"})
@@ -103,7 +102,6 @@ func Part2ExecGetGoogleads(c *gin.Context) {
 	}
 	defer file.Close()
 
-	// Criar um leitor CSV
 	reader := csv.NewReader(file)
 	records, err := reader.ReadAll()
 	if err != nil {
@@ -111,36 +109,40 @@ func Part2ExecGetGoogleads(c *gin.Context) {
 		return
 	}
 
-	// Criar um canal para aguardar a conclusão de todas as goroutines
-	var wg sync.WaitGroup
-
-	// Percorrer as linhas do CSV
 	print("_____________________________")
 	print("Token está pronto:", tokenReady)
 	print("_____________________________")
-	for _, record := range records {
-		if len(record) > 0 { // Garantir que a linha não está vazia
-			accountId := record[0] // Pegar o primeiro campo da linha
-			alpesHubId := record[1]
-			// Adicionar 1 à contagem do WaitGroup para cada goroutine
-			wg.Add(1)
 
-			// Chamar a função assíncrona
-			go func(accountId string, token string) {
+	for _, record := range records {
+		if len(record) > 0 {
+			accountId := record[0]
+			alpesHubId := record[1]
+
+			// Criar um WaitGroup interno para garantir execução sequencial
+			var wg sync.WaitGroup
+
+			// Executa a primeira função (FetchTokensHandler) e aguarda sua finalização
+			wg.Add(1)
+			go func(alpesHubId string) {
 				defer wg.Done()
-				GetTopAndWorstAdGroupsForModelosFOR(c, accountId, token)
-				//funcao abaixo pega o id da alpes para soliciatr login e tudo mais
 				FetchTokensHandler(c, alpesHubId)
+			}(alpesHubId)
+
+			wg.Wait() // Aguarda a finalização da primeira função
+
+			// Executa a segunda função (GetTopAndWorstAdGroupsForModelosFOR) e aguarda sua finalização
+			wg.Add(1)
+			go func(accountId, token string) {
+				defer wg.Done()
+				GetTopAndWorstAdGroupsForModelosFOR(c, accountId, token, TotalLeadsAlpesHub)
 			}(accountId, TokenFinal)
 
-			// Aguardar 2 segundos antes de iniciar a próxima goroutine
+			wg.Wait() // Aguarda a finalização da segunda função
+
+			// Espera 2 segundos antes de processar a próxima conta
 			time.Sleep(2 * time.Second)
 		}
 	}
 
-	// Esperar até que todas as goroutines terminem
-	wg.Wait()
-
-	// Resposta final após o loop assíncrono
 	c.JSON(200, gin.H{"message": "Processamento concluído para todas as contas"})
 }

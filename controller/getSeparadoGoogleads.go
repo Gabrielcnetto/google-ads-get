@@ -6,6 +6,7 @@ import (
 	"google-ads-get/models"
 	"log"
 	"sort"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/shenzhencenter/google-ads-pb/services"
@@ -14,8 +15,9 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-func GetTopAndWorstAdGroupsForModelosFOR(c *gin.Context, accountID string, token string) string {
-	log.Println("Token passado por construtor:", token) // Melhor usar log.Println para debugging
+func GetTopAndWorstAdGroupsForModelosFOR(c *gin.Context, accountID string, token string, totalLeadsHub float64) string {
+	log.Println("Token passado por construtor:", token)
+	log.Println("Total de leads recebido aqui:", totalLeadsHub) // Melhor usar log.Println para debugging
 
 	if token == "" {
 		log.Println("Token não encontrado! Retornando erro.")
@@ -68,7 +70,7 @@ func GetTopAndWorstAdGroupsForModelosFOR(c *gin.Context, accountID string, token
 
 	// Consulta para buscar os grupos de anúncios
 	querySearch := fmt.Sprintf(
-		"SELECT campaign.id, campaign.name, ad_group.id, ad_group.name, metrics.impressions "+
+		"SELECT campaign.id, campaign.name, ad_group.id, ad_group.name, ad_group.status, metrics.impressions "+
 			"FROM ad_group WHERE campaign.name LIKE '%%modelos%%' "+
 			"AND segments.date BETWEEN '%s' AND '%s'",
 		startDate, endDate)
@@ -100,7 +102,17 @@ func GetTopAndWorstAdGroupsForModelosFOR(c *gin.Context, accountID string, token
 	// Processar os dados de grupos de anúncios
 	var adGroups []models.AdGroup
 	for _, row := range res.Results {
+
 		adGroupName := *row.AdGroup.Name
+		if strings.Contains(adGroupName, "#") {
+			log.Println("Desconsiderando grupo de anúncios:", adGroupName)
+			continue
+		}
+		adGroupStatus := row.AdGroup.Status.String()
+		if adGroupStatus != "ENABLED" { // Apenas grupos ativos (ENABLED) são considerados
+			log.Println("Desconsiderando grupo de anúncios inativo:", adGroupName, "Status:", adGroupStatus)
+			continue
+		}
 		impressions := int(*row.Metrics.Impressions)
 		adGroups = append(adGroups, models.AdGroup{
 			Name:        adGroupName,
@@ -161,14 +173,14 @@ func GetTopAndWorstAdGroupsForModelosFOR(c *gin.Context, accountID string, token
 	}
 
 	// Construir o resultado final com custo
+	totalValorCPA := (totalCost / totalLeadsHub)
 	accountResult := fmt.Sprintf(
-		"No mês %s, Tivemos um total de X leads gerados com um CPA Médio de R$XX.00. "+
+		"No mês de %s, Tivemos um total de %.0f leads gerados com um CPA Médio de R$%.2f. "+
 			"A Campanha que mais gerou Leads foi a Campanha X. Na Campanha Modelos, "+
 			"os modelos que mais tiveram buscas foram o %s e %s, e os menos buscados %s e %s. "+
 			"Com isso, é válido estudar ações que maximizem ainda mais o resultados dos modelos mais Buscados, "+
-			"fazendo assim ações que vão de acordo com o interesse do público. "+
-			"Custo total: R$%.2f",
-		monthName, top2[0].Name, top2[1].Name, worst2[0].Name, worst2[1].Name, totalCost)
+			"fazendo assim ações que vão de acordo com o interesse do público. ",
+		monthName, totalLeadsHub, totalValorCPA, top2[0].Name, top2[1].Name, worst2[0].Name, worst2[1].Name)
 
 	log.Println("Resultado final:", accountResult)
 
